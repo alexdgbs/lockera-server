@@ -10,7 +10,7 @@ const app = express();
 const PORT = 3000;
 
 app.use(cors({
-  origin: true, 
+   origin: 'http://localhost:5500', 
   credentials: true
 }));
 
