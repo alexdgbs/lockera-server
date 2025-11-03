@@ -1,10 +1,10 @@
 require('dotenv').config();
-
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const fs = require('fs');
+const path = require('path');
 const bcrypt = require('bcryptjs');
 const sgMail = require('@sendgrid/mail');
 
@@ -21,7 +21,7 @@ app.use(cors({
 app.use(bodyParser.json());
 app.use(cookieParser());
 
-const USERS_FILE = './users.json';
+const USERS_FILE = path.join(__dirname, 'users.json');
 let users = [];
 if (fs.existsSync(USERS_FILE)) users = JSON.parse(fs.readFileSync(USERS_FILE));
 
@@ -29,7 +29,7 @@ function saveUsers() {
   fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
 }
 
-const SERIALS_FILE = './serials.json';
+const SERIALS_FILE = path.join(__dirname, 'serials.json');
 let serials = [];
 if (fs.existsSync(SERIALS_FILE)) serials = JSON.parse(fs.readFileSync(SERIALS_FILE));
 
