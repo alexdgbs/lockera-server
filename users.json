@@ -1,0 +1,16 @@
+[
+  {
+    "id": 1761762944357,
+    "name": "Alejandro Delgadillo Barajas",
+    "email": "alexdbc24@gmail.com",
+    "password": "$2b$10$HL.TpdLtdRTRZXQ51ICCGONqYFbcPUDHLty5qSBmUxokRXD2ZiC7y",
+    "serial": "240564"
+  },
+  {
+    "id": 1761956357876,
+    "name": "Hector",
+    "email": "chacon_20@gmail.com",
+    "password": "$2b$10$rMD5aFDxxZERff3N3TLyrO2rAIFGlor8MNSc2D/nNC/Y6jGhzUEKC",
+    "serial": "987654"
+  }
+]
