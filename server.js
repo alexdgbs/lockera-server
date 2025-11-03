@@ -4,26 +4,20 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
+
+sgMail.setApiKey('D6PXVZX475KVBN76JQWYQMLV');
 
 app.use(cors({
    origin: 'https://lockera.vercel.app', 
-  credentials: true
+   credentials: true
 }));
 
 app.use(bodyParser.json());
 app.use(cookieParser());
-
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: 'securebylockera@gmail.com',
-    pass: 'pnkaxfmkmqtewjci' 
-  }
-});
 
 const USERS_FILE = './users.json';
 let users = [];
@@ -49,7 +43,6 @@ app.post('/api/register', async (req, res) => {
   if(users.find(u => u.email === email)) 
     return res.status(400).json({ message: 'Correo ya registrado' });
 
-
   const serialEntry = serials.find(s => s.serial === serial && s.used === false);
   if(!serialEntry) return res.status(400).json({ message: 'Serial inválido o ya usado' });
 
@@ -73,15 +66,14 @@ app.post('/api/login', async (req, res) => {
   if(!match) return res.status(400).json({ message: 'Contraseña incorrecta' });
 
   res.cookie('user', user.id, {
-  httpOnly: true,
-  sameSite: 'None',   
-  secure: true,      
-  path: '/',
-  maxAge: 24*60*60*1000
-});
+    httpOnly: true,
+    sameSite: 'None',   
+    secure: true,      
+    path: '/',
+    maxAge: 24*60*60*1000
+  });
   res.json({ message: 'Login exitoso' });
 });
-
 
 app.get('/api/me', (req,res)=>{
   const userId = req.cookies.user;
@@ -120,9 +112,9 @@ app.post('/api/users', (req,res)=>{
   users.push(newUser);
   saveUsers();
 
-  const mailOptions = {
-    from: 'securebylockera@gmail.com',
+  const msg = {
     to: 'securebylockera@gmail.com',
+    from: 'securebylockera@gmail.com', 
     subject: `Subusuario agregado por ${creator.name}`,
     html: `
       <h3>Nuevo subusuario agregado</h3>
@@ -132,13 +124,13 @@ app.post('/api/users', (req,res)=>{
     `
   };
 
-  transporter.sendMail(mailOptions, (err, info)=>{
-    if(err) console.error('Error correo:', err);
-    else console.log('Correo enviado:', info.response);
-  });
+  sgMail.send(msg)
+    .then(() => console.log('Correo enviado'))
+    .catch(err => console.error('Error correo:', err));
 
   res.json({ message:'Subusuario agregado correctamente', user:newUser });
 });
+
 app.get('/api/users', (req,res)=>{
   const creatorId = Number(req.cookies.user);
   if(!creatorId) return res.status(401).json({ message: 'No autorizado' });
@@ -151,6 +143,7 @@ app.get('/api/users', (req,res)=>{
 
   res.json(sanitized);
 });
+
 app.get('/api/subusers/:id', (req,res)=>{
   const subUserId = Number(req.params.id);
   const subUser = users.find(u => u.id === subUserId);
@@ -159,6 +152,7 @@ app.get('/api/subusers/:id', (req,res)=>{
   const { password, ...userData } = subUser;
   res.json(userData);
 });
+
 app.delete('/api/users/:id', (req,res)=>{
   const userId = req.cookies.user;
   if(!userId) return res.status(401).json({ message:'No autorizado' });
@@ -172,9 +166,10 @@ app.delete('/api/users/:id', (req,res)=>{
 
   const removedUser = users.splice(subUserIndex,1)[0];
   saveUsers();
-  const mailOptions = {
-    from: 'securebylockera@gmail.com',
+
+  const msg = {
     to: 'securebylockera@gmail.com',
+    from: 'securebylockera@gmail.com',
     subject: `Subusuario eliminado por ${creator.name}`,
     html: `
       <h3>Subusuario eliminado</h3>
@@ -184,13 +179,13 @@ app.delete('/api/users/:id', (req,res)=>{
     `
   };
 
-  transporter.sendMail(mailOptions,(err,info)=>{
-    if(err) console.error('Error correo:',err);
-    else console.log('Correo enviado:', info.response);
-  });
+  sgMail.send(msg)
+    .then(() => console.log('Correo enviado'))
+    .catch(err => console.error('Error correo:', err));
 
   res.json({ message:'Subusuario eliminado correctamente', user:removedUser });
 });
+
 app.post('/api/generate-serial', (req,res)=>{
   const { serial } = req.body;
   if(!serial) return res.status(400).json({ message: 'Falta serial' });
@@ -202,4 +197,5 @@ app.post('/api/generate-serial', (req,res)=>{
   saveSerials();
   res.json({ message: 'Serial agregado correctamente', serial });
 });
+
 app.listen(PORT,()=>console.log(`Servidor corriendo en http://localhost:${PORT}`));
