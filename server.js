@@ -75,7 +75,7 @@ app.post('/api/login', async (req, res) => {
   res.cookie('user', user.id, {
   httpOnly: true,
   sameSite: 'None',   
-  secure: false,      
+  secure: true,      
   path: '/',
   maxAge: 24*60*60*1000
 });
