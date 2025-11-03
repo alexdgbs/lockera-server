@@ -10,7 +10,7 @@ const app = express();
 const PORT = 3000;
 
 app.use(cors({
-   origin: 'http://localhost:5500', 
+   origin: 'https://lockera.vercel.app', 
   credentials: true
 }));
 
@@ -72,7 +72,13 @@ app.post('/api/login', async (req, res) => {
   const match = await bcrypt.compare(password, user.password);
   if(!match) return res.status(400).json({ message: 'Contraseña incorrecta' });
 
-  res.cookie('user', user.id, { httpOnly: true, sameSite: 'Lax', secure: false, path: '/', maxAge: 24*60*60*1000 });
+  res.cookie('user', user.id, {
+  httpOnly: true,
+  sameSite: 'None',   
+  secure: false,      
+  path: '/',
+  maxAge: 24*60*60*1000
+});
   res.json({ message: 'Login exitoso' });
 });
 
