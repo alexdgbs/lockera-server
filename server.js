@@ -43,7 +43,7 @@ app.post('/api/register', async (req, res) => {
   const { name, email, password, serial } = req.body;
   if (!name || !email || !password || !serial) return res.status(400).json({ message: 'Faltan datos' });
   if (users.find(u => u.email === email)) return res.status(400).json({ message: 'Correo ya registrado' });
-  const serialEntry = serials.find(s => s.serial === serial && s.used === false);
+  const serialEntry = serials.find(s => s.serial === String(serial) && s.used === false);
   if (!serialEntry) return res.status(400).json({ message: 'Serial inválido o ya usado' });
   const hashed = await bcrypt.hash(password, 10);
   const newUser = { id: Date.now(), name, email, password: hashed, serial };
