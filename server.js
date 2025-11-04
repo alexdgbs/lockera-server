@@ -2,7 +2,6 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const cookieParser = require('cookie-parser');
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
@@ -14,12 +13,11 @@ const PORT = process.env.PORT || 3000;
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 app.use(cors({
-   origin: 'https://lockera.vercel.app',
-   credentials: true
+  origin: 'https://lockera.vercel.app',
+  credentials: true
 }));
 
 app.use(bodyParser.json());
-app.use(cookieParser());
 
 const USERS_FILE = path.join(__dirname, 'users.json');
 let users = [];
@@ -36,8 +34,6 @@ if (fs.existsSync(SERIALS_FILE)) serials = JSON.parse(fs.readFileSync(SERIALS_FI
 function saveSerials() {
   fs.writeFileSync(SERIALS_FILE, JSON.stringify(serials, null, 2));
 }
-
-const isProd = process.env.NODE_ENV === 'production';
 
 app.post('/api/register', async (req, res) => {
   const { name, email, password, serial } = req.body;
@@ -60,43 +56,20 @@ app.post('/api/login', async (req, res) => {
   if (!user) return res.status(400).json({ message: 'Usuario no encontrado' });
   const match = await bcrypt.compare(password, user.password);
   if (!match) return res.status(400).json({ message: 'Contraseña incorrecta' });
-res.cookie('user', user.id, {
-  httpOnly: true,
-  sameSite: 'None',
-  secure: true,
-  path: '/',
-  maxAge: 24 * 60 * 60 * 1000
+  res.json({ message: 'Login exitoso', userId: user.id });
 });
 
-  res.json({ message: 'Login exitoso' });
-});
-
-app.get('/api/me', (req, res) => {
-  const userId = req.cookies.user;
-  if (!userId) return res.status(401).json({ message: 'No autorizado' });
+app.post('/api/me', (req, res) => {
+  const { userId } = req.body;
   const user = users.find(u => u.id == userId);
   if (!user) return res.status(401).json({ message: 'No autorizado' });
   const { password, ...userData } = user;
   res.json(userData);
 });
 
-app.post('/api/logout', (req, res) => {
-res.clearCookie('user', {
-  httpOnly: true,
-  sameSite: 'None',
-  secure: true,
-  path: '/'
-});
-  res.json({ message: 'Sesión cerrada' });
-});
-
-
-
 app.post('/api/users', (req, res) => {
-  const { firstName, lastName } = req.body;
-  const creatorId = req.cookies.user;
-  if (!creatorId) return res.status(401).json({ message: 'No autorizado' });
-  const creator = users.find(u => u.id == creatorId);
+  const { firstName, lastName, userId } = req.body;
+  const creator = users.find(u => u.id == userId);
   if (!creator) return res.status(401).json({ message: 'No autorizado' });
   const newUser = {
     id: Date.now(),
@@ -122,10 +95,11 @@ app.post('/api/users', (req, res) => {
   res.json({ message: 'Subusuario agregado correctamente', user: newUser });
 });
 
-app.get('/api/users', (req, res) => {
-  const creatorId = Number(req.cookies.user);
-  if (!creatorId) return res.status(401).json({ message: 'No autorizado' });
-  const subUsers = users.filter(u => u.createdBy === creatorId);
+app.post('/api/users/list', (req, res) => {
+  const { userId } = req.body;
+  const creator = users.find(u => u.id == userId);
+  if (!creator) return res.status(401).json({ message: 'No autorizado' });
+  const subUsers = users.filter(u => u.createdBy === creator.id);
   const sanitized = subUsers.map(u => {
     const { password, ...data } = u;
     return data;
@@ -133,21 +107,19 @@ app.get('/api/users', (req, res) => {
   res.json(sanitized);
 });
 
-app.get('/api/subusers/:id', (req, res) => {
-  const subUserId = Number(req.params.id);
-  const subUser = users.find(u => u.id === subUserId);
+app.post('/api/subusers', (req, res) => {
+  const { id } = req.body;
+  const subUser = users.find(u => u.id === Number(id));
   if (!subUser) return res.status(404).json({ message: 'Subusuario no encontrado' });
   const { password, ...userData } = subUser;
   res.json(userData);
 });
 
-app.delete('/api/users/:id', (req, res) => {
-  const userId = req.cookies.user;
-  if (!userId) return res.status(401).json({ message: 'No autorizado' });
+app.post('/api/users/delete', (req, res) => {
+  const { userId, subUserId } = req.body;
   const creator = users.find(u => u.id == userId);
   if (!creator) return res.status(401).json({ message: 'No autorizado' });
-  const subUserId = Number(req.params.id);
-  const subUserIndex = users.findIndex(u => u.id === subUserId);
+  const subUserIndex = users.findIndex(u => u.id === Number(subUserId));
   if (subUserIndex === -1) return res.status(404).json({ message: 'Subusuario no encontrado' });
   const removedUser = users.splice(subUserIndex, 1)[0];
   saveUsers();
