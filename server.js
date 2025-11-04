@@ -162,5 +162,14 @@ app.post('/api/generate-serial', authenticateToken, (req, res) => {
   saveSerials();
   res.json({ message: 'Serial agregado correctamente', serial });
 });
+app.post('/api/validate-serial', (req, res) => {
+  const { serial } = req.body;
+  if (!serial) return res.status(400).json({ message: 'Falta serial' });
 
+  const serialEntry = serials.find(s => s.serial === String(serial));
+  if (!serialEntry) return res.status(400).json({ message: 'Serial inválido' });
+  if (serialEntry.used) return res.status(400).json({ message: 'Serial ya usado' });
+
+  res.json({ message: 'Serial válido' });
+});
 app.listen(PORT, () => console.log(`Servidor corriendo en http://localhost:${PORT}`));
