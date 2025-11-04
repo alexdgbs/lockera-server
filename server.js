@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 app.use(cors({
-  origin: 'https://lockera.vercel.app',
+  origin: '*',
   credentials: true
 }));
 
