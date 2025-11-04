@@ -34,6 +34,13 @@ if (fs.existsSync(SERIALS_FILE)) serials = JSON.parse(fs.readFileSync(SERIALS_FI
 function saveSerials() {
   fs.writeFileSync(SERIALS_FILE, JSON.stringify(serials, null, 2));
 }
+function authMiddleware(req, res, next) {
+  const userId = req.headers['x-user-id'];
+  if (!userId) return res.status(401).json({ message: 'No autorizado: falta userId' });
+  const user = users.find(u => u.id == userId);
+  if (!user) return res.status(401).json({ message: 'No autorizado: userId inválido' });
+  req.user = user;
+}
 
 app.post('/api/register', async (req, res) => {
   const { name, email, password, serial } = req.body;
@@ -41,6 +48,7 @@ app.post('/api/register', async (req, res) => {
   if (users.find(u => u.email === email)) return res.status(400).json({ message: 'Correo ya registrado' });
   const serialEntry = serials.find(s => s.serial === String(serial) && s.used === false);
   if (!serialEntry) return res.status(400).json({ message: 'Serial inválido o ya usado' });
+
   const hashed = await bcrypt.hash(password, 10);
   const newUser = { id: Date.now(), name, email, password: hashed, serial };
   users.push(newUser);
@@ -59,47 +67,13 @@ app.post('/api/login', async (req, res) => {
   res.json({ message: 'Login exitoso', userId: user.id });
 });
 
-app.post('/api/me', (req, res) => {
-  const { userId } = req.body;
-  const user = users.find(u => u.id == userId);
-  if (!user) return res.status(401).json({ message: 'No autorizado' });
-  const { password, ...userData } = user;
+app.get('/api/me', authMiddleware, (req, res) => {
+  const { password, ...userData } = req.user;
   res.json(userData);
 });
 
-app.post('/api/users', (req, res) => {
-  const { firstName, lastName, userId } = req.body;
-  const creator = users.find(u => u.id == userId);
-  if (!creator) return res.status(401).json({ message: 'No autorizado' });
-  const newUser = {
-    id: Date.now(),
-    name: `${firstName} ${lastName}`,
-    email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@lockera.com`,
-    password: null,
-    serial: creator.serial,
-    createdBy: creator.id,
-    createdAt: new Date().toISOString()
-  };
-  users.push(newUser);
-  saveUsers();
-  const msg = {
-    to: 'securebylockera@gmail.com',
-    from: 'securebylockera@gmail.com',
-    subject: `Subusuario agregado por ${creator.name}`,
-    html: `<h3>Nuevo subusuario agregado</h3>
-           <p>Usuario principal: <b>${creator.name}</b> (${creator.email})</p>
-           <p>Subusuario agregado: <b>${newUser.name}</b> (${newUser.email})</p>
-           <p>Fecha: ${new Date().toLocaleString()}</p>`
-  };
-  sgMail.send(msg).catch(err => console.error(err));
-  res.json({ message: 'Subusuario agregado correctamente', user: newUser });
-});
-
-app.post('/api/users/list', (req, res) => {
-  const { userId } = req.body;
-  const creator = users.find(u => u.id == userId);
-  if (!creator) return res.status(401).json({ message: 'No autorizado' });
-  const subUsers = users.filter(u => u.createdBy === creator.id);
+app.get('/api/users', authMiddleware, (req, res) => {
+  const subUsers = users.filter(u => u.createdBy === req.user.id);
   const sanitized = subUsers.map(u => {
     const { password, ...data } = u;
     return data;
@@ -107,31 +81,56 @@ app.post('/api/users/list', (req, res) => {
   res.json(sanitized);
 });
 
-app.post('/api/subusers', (req, res) => {
-  const { id } = req.body;
-  const subUser = users.find(u => u.id === Number(id));
-  if (!subUser) return res.status(404).json({ message: 'Subusuario no encontrado' });
-  const { password, ...userData } = subUser;
-  res.json(userData);
-});
+app.post('/api/users', authMiddleware, (req, res) => {
+  const { firstName, lastName } = req.body;
+  if (!firstName || !lastName) return res.status(400).json({ message: 'Faltan datos' });
 
-app.post('/api/users/delete', (req, res) => {
-  const { userId, subUserId } = req.body;
-  const creator = users.find(u => u.id == userId);
-  if (!creator) return res.status(401).json({ message: 'No autorizado' });
-  const subUserIndex = users.findIndex(u => u.id === Number(subUserId));
-  if (subUserIndex === -1) return res.status(404).json({ message: 'Subusuario no encontrado' });
-  const removedUser = users.splice(subUserIndex, 1)[0];
+  const newUser = {
+    id: Date.now(),
+    name: `${firstName} ${lastName}`,
+    email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@lockera.com`,
+    password: null,
+    serial: req.user.serial,
+    createdBy: req.user.id,
+    createdAt: new Date().toISOString()
+  };
+
+  users.push(newUser);
   saveUsers();
+
   const msg = {
     to: 'securebylockera@gmail.com',
     from: 'securebylockera@gmail.com',
-    subject: `Subusuario eliminado por ${creator.name}`,
+    subject: `Subusuario agregado por ${req.user.name}`,
+    html: `<h3>Nuevo subusuario agregado</h3>
+           <p>Usuario principal: <b>${req.user.name}</b> (${req.user.email})</p>
+           <p>Subusuario agregado: <b>${newUser.name}</b> (${newUser.email})</p>
+           <p>Fecha: ${new Date().toLocaleString()}</p>`
+  };
+
+  sgMail.send(msg).catch(err => console.error(err));
+
+  res.json({ message: 'Subusuario agregado correctamente', user: newUser });
+});
+
+app.post('/api/users/delete', authMiddleware, (req, res) => {
+  const { subUserId } = req.body;
+  const subUserIndex = users.findIndex(u => u.id === Number(subUserId) && u.createdBy === req.user.id);
+  if (subUserIndex === -1) return res.status(404).json({ message: 'Subusuario no encontrado' });
+
+  const removedUser = users.splice(subUserIndex, 1)[0];
+  saveUsers();
+
+  const msg = {
+    to: 'securebylockera@gmail.com',
+    from: 'securebylockera@gmail.com',
+    subject: `Subusuario eliminado por ${req.user.name}`,
     html: `<h3>Subusuario eliminado</h3>
-           <p>Usuario principal: <b>${creator.name}</b> (${creator.email})</p>
+           <p>Usuario principal: <b>${req.user.name}</b> (${req.user.email})</p>
            <p>Subusuario eliminado: <b>${removedUser.name}</b> (${removedUser.email})</p>
            <p>Fecha: ${new Date().toLocaleString()}</p>`
   };
+
   sgMail.send(msg).catch(err => console.error(err));
   res.json({ message: 'Subusuario eliminado correctamente', user: removedUser });
 });
