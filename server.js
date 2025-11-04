@@ -60,13 +60,14 @@ app.post('/api/login', async (req, res) => {
   if (!user) return res.status(400).json({ message: 'Usuario no encontrado' });
   const match = await bcrypt.compare(password, user.password);
   if (!match) return res.status(400).json({ message: 'Contraseña incorrecta' });
-  res.cookie('user', user.id, {
-    httpOnly: true,
-    sameSite: isProd ? 'None' : 'Lax',
-    secure: isProd,
-    path: '/',
-    maxAge: 24 * 60 * 60 * 1000
-  });
+res.cookie('user', user.id, {
+  httpOnly: true,
+  sameSite: 'None',
+  secure: true,
+  path: '/',
+  maxAge: 24 * 60 * 60 * 1000
+});
+
   res.json({ message: 'Login exitoso' });
 });
 
@@ -80,14 +81,16 @@ app.get('/api/me', (req, res) => {
 });
 
 app.post('/api/logout', (req, res) => {
-  res.clearCookie('user', {
-    httpOnly: true,
-    sameSite: isProd ? 'None' : 'Lax',
-    secure: isProd,
-    path: '/'
-  });
+res.clearCookie('user', {
+  httpOnly: true,
+  sameSite: 'None',
+  secure: true,
+  path: '/'
+});
   res.json({ message: 'Sesión cerrada' });
 });
+
+
 
 app.post('/api/users', (req, res) => {
   const { firstName, lastName } = req.body;
