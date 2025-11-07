@@ -107,7 +107,7 @@ app.post('/api/users', authenticateToken, async (req, res) => {
     html: `<h3>Nuevo subusuario agregado</h3>
            <p>Usuario principal: <b>${creator.name}</b></p>
            <p>Subusuario agregado: <b>${newUser.name}</b></p>
-           <p>Fecha: ${new Date().toLocaleString()}</p>`
+           <p>Fecha: ${new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}</p>`
   };
 
   sgMail.send(msg).catch(console.error);
@@ -133,7 +133,7 @@ app.delete('/api/users/:id', authenticateToken, async (req, res) => {
     html: `<h3>Subusuario eliminado</h3>
            <p>Usuario principal: <b>${creator.name}</b></p>
            <p>Subusuario eliminado: <b>${subUser.name}</b></p>
-           <p>Fecha: ${new Date().toLocaleString()}</p>`
+           <p>Fecha: ${new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}</p>`
   };
 
   sgMail.send(msg).catch(console.error);
