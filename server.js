@@ -39,6 +39,14 @@ function authenticateToken(req, res, next) {
   });
 }
 
+app.post('/api/validate-serial', async (req, res) => {
+  const { serial } = req.body;
+  if (!serial) return res.status(400).json({ message: 'Falta el serial' });
+  const serialDoc = await Serial.findOne({ serial, used: false });
+  if (!serialDoc) return res.status(400).json({ message: 'Serial inválido o ya usado' });
+  res.json({ message: 'Serial válido' });
+});
+
 app.post('/api/register', async (req, res) => {
   const { name, email, password, serial } = req.body;
   if (!name || !email || !password || !serial)
